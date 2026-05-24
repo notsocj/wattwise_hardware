@@ -11,9 +11,9 @@ const String SUPABASE_URL_DEVICES = "https://akvfnfusmdnqgvurihza.supabase.co/re
 const String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrdmZuZnVzbWRucWd2dXJpaHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDAwMDEsImV4cCI6MjA4OTQxNjAwMX0.xUOCxPNaYXGrb0WdDTgDT5gpIZs0cs43Cw1UqqpFAC8";
 
 // --- Hardware Mapping ---
-#define PZEM_RX_PIN 18  // Safe pin for ESP32-S3
-#define PZEM_TX_PIN 19  // Safe pin for ESP32-S3
-#define RELAY_PIN 15
+#define PZEM_RX_PIN 4   // Moved away from USB Pin 18 -> Connect to PZEM TX
+#define PZEM_TX_PIN 5   // Moved away from USB Pin 19 -> Connect to PZEM RX
+#define RELAY_PIN 15    // Controls your relay (Pin 15)
 #define RESET_BTN_PIN 0 // The built-in "BOOT" button on the ESP32-S3
 
 // Hardware Serial 2 on ESP32-S3
@@ -78,7 +78,7 @@ void setup() {
   
   // Initialize Pins
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW); // LOW now means OFF (High-Trigger Mode)
+  digitalWrite(RELAY_PIN, LOW); // LOW = OFF when hardware jumper is set to High-Trigger "H"
   pinMode(RESET_BTN_PIN, INPUT_PULLUP);
 
   Serial.println("\nStarting WiFiManager...");
@@ -99,7 +99,6 @@ void loop() {
   server.handleClient();
 
   // --- HARDWARE RESET LOGIC ---
-  // Hold BOOT button for 5 seconds to wipe WiFi credentials and restart
   if (digitalRead(RESET_BTN_PIN) == LOW) {
     if (!isBtnPressed) {
       isBtnPressed = true;
@@ -147,14 +146,14 @@ void loop() {
         String payload = http.getString();
         Serial.println("[HTTP GET] Payload: " + payload);
         
-        // HIGHLIGHT: Updated logic for High-Trigger (H) jumper
+        // High-Trigger (H Jumper Configured)
         if (payload.indexOf("\"relay_state\":true") > 0) {
           isRelayOn = true;
-          digitalWrite(RELAY_PIN, HIGH); // Turn ON (3.3V triggers the relay)
+          digitalWrite(RELAY_PIN, HIGH); // Send 3.3V to turn ON
           Serial.println("--> Relay commanded ON");
         } else if (payload.indexOf("\"relay_state\":false") > 0) {
           isRelayOn = false;
-          digitalWrite(RELAY_PIN, LOW); // Turn OFF (0V completely shuts it down)
+          digitalWrite(RELAY_PIN, LOW);  // Send 0V to turn OFF
           Serial.println("--> Relay commanded OFF");
         }
       } else {
@@ -196,4 +195,3 @@ void loop() {
     }
   }
 }
-

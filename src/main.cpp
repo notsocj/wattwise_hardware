@@ -75,6 +75,8 @@ void handleRoot() {
 
 void setup() {
   Serial.begin(115200);
+  // Force reset the PZEM address to the default 0x01
+  pzem.setAddress(0x01);
   
   // Initialize Pins
   pinMode(RELAY_PIN, OUTPUT);

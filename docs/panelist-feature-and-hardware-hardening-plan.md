@@ -1,6 +1,6 @@
 # WattWise Panel Features and Hardware Hardening
 
-This plan is now being implemented across `wattwise_platform` and `wattwise_hardware`.
+Status (October 22, 2026): both tracks are implemented in code. The platform features below are live; reports were rebuilt on October 21, 2026 to use the same usage RPCs as the dashboard and to price each day at that day's Meralco rate. The hardware items are in `src/main.cpp` on `main`; the acceptance tests listed at the end have not been recorded as run on physical units.
 
 Decisions: MAC pairing, in-app warnings, 80/90/100% thresholds, CSV plus print-friendly PDF, measured-versus-estimated appliance comparison, and relay OFF until a valid cloud command.
 

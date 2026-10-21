@@ -4,7 +4,7 @@
 
 This repository contains the ESP32-S3 firmware for WattWise sub-meter units. The firmware reads a PZEM-004T v3 meter, controls a relay, serves a local telemetry page, and synchronizes with the WattWise Supabase project. `wattwise_platform` is the consumer of the resulting `energy_logs` rows and the source of the database migrations/RLS policies.
 
-The current source of truth is `main` at commit `f2878c9` (August 12, 2026). Keep `wattwise_cloud` out of scope.
+The current source of truth is `main`. Keep `wattwise_cloud` out of scope.
 
 ## Repository map
 

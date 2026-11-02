@@ -385,17 +385,21 @@ void postTelemetry() {
 }
 
 void syncCloud(unsigned long now) {
-  if (WiFi.status() != WL_CONNECTED || now < nextRetryTime || now - lastCloudSyncTime < CLOUD_SYNC_INTERVAL) {
+  if (WiFi.status() != WL_CONNECTED || now - lastCloudSyncTime < CLOUD_SYNC_INTERVAL) {
     return;
   }
   lastCloudSyncTime = now;
   // Relay commands are only read after MAC registration is verified. Keep
   // telemetry delivery independent so a transient registration/RLS response
   // cannot silently stop the energy buffer from being submitted.
+  // The retry backoff only throttles uploads: relay commands (budget cutoffs)
+  // are still read every interval after a failed POST.
   if (cloudConfigured) {
     pollRelayState();
   }
-  postTelemetry();
+  if (now >= nextRetryTime) {
+    postTelemetry();
+  }
 }
 
 void setup() {

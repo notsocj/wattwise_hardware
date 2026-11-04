@@ -27,7 +27,7 @@ Use PlatformIO with the environment named `esp32coore` (the spelling is part of 
 - `recorded_at` is assigned by the database. Do not send it: `(device_id, recorded_at)` is unique.
 - POSTs must keep PostgREST's default `return=minimal` (no `Prefer: return=representation`). The anon role cannot read `energy_logs`, so asking for the inserted row back would fail the request.
 
-## Platform contract (updated October 21, 2026)
+## Platform contract (updated November 2, 2026)
 
 These platform behaviors depend on the firmware's timing and identity. Change them only together with `wattwise_platform`.
 
@@ -35,6 +35,7 @@ These platform behaviors depend on the firmware's timing and identity. Change th
 - **Each accepted insert updates `devices.last_seen_at`.** The `energy_logs_update_device_last_seen` trigger sets `last_seen_at` and `is_online` on the device whose UUID or MAC the row names, if it is paired (`user_id` set). Before platform migration `036` (October 21, 2026) this silently did nothing for anon inserts, so units that last reported earlier show `last_seen_at = null` until their next reading.
 - **Inserts are authorized by MAC.** `hardware_anon_insert_energy_logs` accepts an anon insert only when `device_id` matches a registered `devices.mac_address` (case-insensitive). An unregistered or reformatted MAC gets a 401/403.
 - **Live updates arrive through Realtime.** The dashboard patches watts, volts, and amps from each `energy_logs` INSERT and no longer reloads the page per reading. It follows relay and budget changes through `devices` UPDATEs. Both tables must stay in the `supabase_realtime` publication.
+- **Implausible kWh jumps are ignored.** The budget trigger counts a reading's kWh increase as zero when no 10 kW load could have used it in the time since the previous reading (platform migration `039`), the same way it treats a meter reset. A long offline gap is fine because the allowance grows with elapsed time. Spend is kept at full precision, not rounded per reading.
 - **Relay cutoffs are applied by the next poll.** Budget cutoffs, user toggles, and Restore Power all write `devices.relay_state`; the firmware applies the change on its next 5 s relay read. The relay read keeps running while telemetry uploads back off after a failure, so a failed POST never delays a cutoff. Relay-off in the app is described as a command sent, not a confirmed state.
 - **Volume.** At one reading every 5 s a unit adds about 17,000 `energy_logs` rows a day. The platform reads them through bounded, indexed RPCs (`get_latest_device_readings`, `get_usage_kwh_by_device[_day]`, `get_average_watts_by_device`) and an RLS policy evaluated once per query. Do not raise the post rate without checking those.
 - **Infrastructure.** Supabase runs in ap-northeast-2 (Seoul), project `akvfnfusmdnqgvurihza`; the web app's Vercel functions run in `icn1` (Seoul). The firmware talks to Supabase directly and never to Vercel.

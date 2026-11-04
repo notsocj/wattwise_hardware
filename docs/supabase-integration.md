@@ -32,7 +32,7 @@ What happens after each accepted insert, with the platform migration that define
 | Behavior | Migration |
 | --- | --- |
 | The `hardware_anon_insert_energy_logs` policy accepts an anon insert only when `device_id` matches a registered `devices.mac_address`, ignoring case (`is_registered_device_mac`). | `011`, `022` |
-| The smart-budget trigger resolves the device by UUID text or MAC, adds the non-negative cumulative-kWh delta to `device_month_usage`, and may set `devices.relay_state = false` when the budget policy is breached. The next relay poll applies it. | `012`, `025`, `031` |
+| The smart-budget trigger resolves the device by UUID text or MAC, adds the non-negative cumulative-kWh delta to `device_month_usage` (ignoring jumps no 10 kW load could make in the elapsed time, and pricing at the owner's distribution tier without per-reading rounding), and may set `devices.relay_state = false` when the budget policy is breached. The next relay poll applies it. | `012`, `025`, `031`, `038`, `039` |
 | `energy_logs_update_device_last_seen` sets `devices.last_seen_at = now()` and `is_online = true` for the paired device. It silently did nothing for anon (hardware) inserts until it became SECURITY DEFINER on October 21, 2026. | `035`, `036` |
 | Signed-in users read rows for devices they own, use, or rent through one `energy_logs` SELECT policy evaluated once per query. | `033` |
 | The platform reads telemetry through bounded, index-backed RPCs: `get_latest_device_readings`, `get_usage_kwh_by_device[_day]`, `get_average_watts_by_device`. | `005`, `006`, `034` |
@@ -49,7 +49,7 @@ On October 22, 2026, production had three physical units registered:
 | Wattwise Unit Testing | `44:1B:F6:82:2F:50` | true | ok | none | 2026-10-01 |
 | Wattwise Unit 2 | `A0:F2:62:E2:0E:BC` | true | ok | PHP 22.75 | 2026-08-12 |
 
-The other ten `devices` rows are admin demo simulations (MACs starting `02:DE`) or seeded entries that have never reported. All three physical units still show `last_seen_at = null` because they last reported before the October 21 trigger fix; it fills in on their next reading.
+The other ten `devices` rows are admin demo simulations (MACs starting `02:DE`) or seeded entries that have never reported. Since November 2, 2026 a running demo unit is simulated in the database by `public.simulate_demo_units()` every 10 seconds (platform migration `039`), using the same `energy_logs` payload as this firmware. All three physical units still show `last_seen_at = null` because they last reported before the October 21 trigger fix; it fills in on their next reading.
 
 The same day, the firmware's relay `GET` for `44:1B:F6:82:2F:50` returned `[{"relay_state":true}]` (HTTP 200) with the anon key, and an anon `GET` on `energy_logs` returned `[]`. The anon insert path and the last-seen trigger were verified with a rolled-back insert in a database transaction, not a live POST.
 

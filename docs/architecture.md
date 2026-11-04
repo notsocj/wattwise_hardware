@@ -29,7 +29,7 @@ The relay is configured for a high-trigger jumper: `HIGH` means ON and `LOW` mea
 
 ## Timing and aggregation
 
-Every two seconds the firmware reads voltage, current, power, and cumulative energy from the PZEM. Valid readings update the local cache and add power to an in-memory sum. Every five seconds, while Wi-Fi is connected, the firmware first polls the relay state and then posts one averaged-power telemetry row. A successful post clears the in-memory sum and count.
+Every two seconds the firmware reads voltage, current, power, and cumulative energy from the PZEM. Valid readings update the local cache and add power to an in-memory sum. Every five seconds, while Wi-Fi is connected, the firmware first polls the relay state and then posts one averaged-power telemetry row. A successful post clears the in-memory sum and count. After a failed post, uploads back off (10 s doubling to 120 s) while the relay poll keeps its 5-second rhythm, so a budget cutoff is not delayed by upload failures.
 
 The local HTTP server listens on port 80 and serves `/`, refreshing a basic live telemetry page every two seconds. It exposes the device MAC and the cached electrical readings.
 

@@ -17,9 +17,10 @@ On first boot, connect to the `WattWise-Setup` Wi-FiManager portal and configure
 
 ## Current limitations
 
-- No offline queue, retry persistence, sequence number, or idempotency key; readings can be lost during outages.
+- No offline queue, retry persistence, sequence number, or idempotency key. Detail from an outage is lost, but kWh is not: `energy_kwh` is the PZEM's cumulative counter, so the next accepted reading carries the whole gap.
 - Telemetry aggregation is acknowledged only for 2xx responses; failed batches remain in memory for bounded retries. A power loss can still discard an in-memory batch.
-- Relay state is parsed with ArduinoJson and invalid/empty responses leave the fail-safe relay state unchanged.
+- Relay state is parsed with ArduinoJson. Invalid or empty responses, and Wi-Fi or HTTP failures after boot, keep the last commanded relay state (OFF only at startup). A unit that loses Wi-Fi while ON stays ON and cannot receive a cutoff until it reconnects.
+- After a failed telemetry POST, uploads back off (10 s doubling to 120 s), but the relay is still polled every 5 s.
 - Direct five-second polling creates roughly 34,560 requests per device per day and about 17,280 `energy_logs` rows. The platform's reads are index-backed and bounded, but the table has no retention or downsampling yet.
 - `devices.is_online` is set on every reading and never cleared, so it does not mean "online now". Use `last_seen_at` freshness, as the platform does.
 - MAC addresses and the anon key are not hardware authentication. Production deployments need device-specific credentials or a controlled ingestion gateway.

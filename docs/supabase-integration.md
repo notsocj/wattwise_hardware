@@ -39,7 +39,7 @@ What happens after each accepted insert, with the platform migration that define
 
 `devices.is_online` is never reset to `false`, so the platform decides online status from `last_seen_at` (or the latest reading) being under 20 seconds old. `energy_logs` and `devices` are both in the `supabase_realtime` publication.
 
-## Verified live state
+## Last recorded production verification
 
 On October 22, 2026, production had three physical units registered:
 
@@ -49,9 +49,11 @@ On October 22, 2026, production had three physical units registered:
 | Wattwise Unit Testing | `44:1B:F6:82:2F:50` | true | ok | none | 2026-10-01 |
 | Wattwise Unit 2 | `A0:F2:62:E2:0E:BC` | true | ok | PHP 22.75 | 2026-08-12 |
 
-The other ten `devices` rows are admin demo simulations (MACs starting `02:DE`) or seeded entries that have never reported. Since November 2, 2026 a running demo unit is simulated in the database by `public.simulate_demo_units()` every 10 seconds (platform migration `039`), using the same `energy_logs` payload as this firmware. All three physical units still show `last_seen_at = null` because they last reported before the October 21 trigger fix; it fills in on their next reading.
+In that October 22 snapshot, the other ten `devices` rows were admin demo simulations (MACs starting `02:DE`) or seeded entries that had never reported. All three physical units had `last_seen_at = null` because they last reported before the October 21 trigger fix; a subsequent accepted reading from a paired unit updates it. This is a historical snapshot, not a current device-status check.
 
-The same day, the firmware's relay `GET` for `44:1B:F6:82:2F:50` returned `[{"relay_state":true}]` (HTTP 200) with the anon key, and an anon `GET` on `energy_logs` returned `[]`. The anon insert path and the last-seen trigger were verified with a rolled-back insert in a database transaction, not a live POST.
+Since November 2, 2026 a running demo unit is simulated in the database by `public.simulate_demo_units()` every 10 seconds (platform migration `039`), using the same `energy_logs` payload as this firmware.
+
+On October 22, the firmware's relay `GET` for `44:1B:F6:82:2F:50` returned `[{"relay_state":true}]` (HTTP 200) with the anon key, and an anon `GET` on `energy_logs` returned `[]`. The anon insert path and the last-seen trigger were verified with a rolled-back insert in a database transaction, not a live POST.
 
 Earlier, on July 27, 2026, a connectivity-verification row was inserted for `44:1B:F6:82:2F:50` with cumulative energy `0.2000`, so the budget delta remained zero. Do not repeat synthetic writes in production data without labeling or cleanup.
 

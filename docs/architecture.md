@@ -12,7 +12,7 @@ PZEM-004T v3 -> ESP32-S3 (Serial2) -> Wi-Fi -> Supabase REST (Seoul)
                                   relay GPIO 15      v
                                       ^          Supabase Realtime
                                       |              |
-                       relay_state poll (5 s) <- wattwise_platform web app
+                  relay_state poll (nominal 5 s) <- wattwise_platform web app
 ```
 
 ## Hardware mapping
@@ -29,7 +29,7 @@ The relay is configured for a high-trigger jumper: `HIGH` means ON and `LOW` mea
 
 ## Timing and aggregation
 
-Every two seconds the firmware reads voltage, current, power, and cumulative energy from the PZEM. Valid readings update the local cache and add power to an in-memory sum. Every five seconds, while Wi-Fi is connected, the firmware first polls the relay state and then posts one averaged-power telemetry row. A successful post clears the in-memory sum and count. After a failed post, uploads back off (10 s doubling to 120 s) while the relay poll keeps its 5-second rhythm, so a budget cutoff is not delayed by upload failures.
+Sensor reads are scheduled every two seconds and collect voltage, current, power, and cumulative energy from the PZEM. Valid readings update the local cache and add power to an in-memory sum. Cloud sync is scheduled every five seconds while Wi-Fi is connected. Each cycle polls the relay state if registration has been verified, then attempts to post one averaged-power telemetry row if uploads are not backing off. A successful post clears the in-memory sum and count. Failed uploads back off (10 s doubling to 120 s); that backoff no longer suppresses relay polls. HTTP requests are synchronous with an 8-second timeout, however, so a slow or timed-out request can delay the main loop, including sensor reads and the next relay poll.
 
 The local HTTP server listens on port 80 and serves `/`, refreshing a basic live telemetry page every two seconds. It exposes the device MAC and the cached electrical readings.
 
@@ -37,4 +37,4 @@ The local HTTP server listens on port 80 and serves `/`, refreshing a basic live
 
 - A unit shows as LIVE on the dashboard, and online in the admin pages, only if its latest reading is under 20 seconds old (four missed 5-second syncs). Slowing the cloud sync past 5 s makes healthy units flicker offline unless `ACTIVE_READING_WINDOW_MS` in `wattwise_platform/lib/device-telemetry.ts` changes with it.
 - The dashboard updates watts, volts, and amps from each inserted row through Supabase Realtime, without reloading the page.
-- A relay change made in the app (toggle, Restore Power, or budget cutoff) is written to `devices.relay_state` and applied by the unit on its next 5-second relay poll, so the physical switch can lag the app by up to about 5 seconds.
+- A relay change made in the app (toggle, Restore Power, or budget cutoff) is written to `devices.relay_state` and applied by the unit on its next successful relay poll. Five seconds is the nominal polling interval, not a maximum physical-response time; slow HTTP requests and connectivity failures can delay the command.

@@ -6,21 +6,23 @@ On first boot, connect to the `WattWise-Setup` Wi-FiManager portal and configure
 
 ## Verification checklist
 
+Physical-unit validation of the current firmware, including the November 2 relay polling fix, has not been recorded. Confirm the firmware flashed to each unit before running these checks.
+
 1. Confirm the serial monitor reports a stable Wi-Fi connection and MAC.
 2. Confirm the MAC exists in `devices` and the relay GET returns one row.
 3. Confirm POST responses are 2xx (201) and new rows appear in `energy_logs`.
 4. Confirm the dashboard card switches to LIVE within a few seconds and its watts, volts, and amps update on each post.
 5. Confirm the admin devices table shows the unit as Online, which means `devices.last_seen_at` is updating. If it stays "never seen" while rows arrive, the device is unpaired (`user_id` is null) or platform migration `036` is missing.
-6. Confirm a relay toggle in the app reaches the relay within about five seconds, and that the app asks for confirmation before turning a unit off.
+6. Confirm a relay toggle in the app reaches the relay on the next successful poll, and that the app asks for confirmation before turning a unit off. Measure latency with normal connectivity and during a rejected or timed-out telemetry POST: upload backoff must not suppress relay polls, but synchronous HTTP timeouts can extend the nominal five-second interval.
 7. Unplug Wi-Fi and confirm the dashboard shows the unit as offline within about 20 seconds.
 8. Test with a safe load before connecting tenant appliances.
 
 ## Current limitations
 
-- No offline queue, retry persistence, sequence number, or idempotency key. Detail from an outage is lost, but kWh is not: `energy_kwh` is the PZEM's cumulative counter, so the next accepted reading carries the whole gap.
+- No offline queue, retry persistence, sequence number, or idempotency key. Detail from an outage is lost. The next accepted `energy_kwh` reading can recover the cumulative energy delta if the PZEM counter continued without a reset, a prior accepted baseline exists, and the delta passes the platform's plausibility check. This recovery still needs physical outage/reconnection validation.
 - Telemetry aggregation is acknowledged only for 2xx responses; failed batches remain in memory for bounded retries. A power loss can still discard an in-memory batch.
 - Relay state is parsed with ArduinoJson. Invalid or empty responses, and Wi-Fi or HTTP failures after boot, keep the last commanded relay state (OFF only at startup). A unit that loses Wi-Fi while ON stays ON and cannot receive a cutoff until it reconnects.
-- After a failed telemetry POST, uploads back off (10 s doubling to 120 s), but the relay is still polled every 5 s.
+- After a failed telemetry POST, uploads back off (10 s doubling to 120 s), without suppressing scheduled relay polls. The nominal relay interval is 5 s while connected; synchronous HTTP requests with an 8-second timeout can delay the main loop and command application.
 - Direct five-second polling creates roughly 34,560 requests per device per day and about 17,280 `energy_logs` rows. The platform's reads are index-backed and bounded, but the table has no retention or downsampling yet.
 - `devices.is_online` is set on every reading and never cleared, so it does not mean "online now". Use `last_seen_at` freshness, as the platform does.
 - MAC addresses and the anon key are not hardware authentication. Production deployments need device-specific credentials or a controlled ingestion gateway.

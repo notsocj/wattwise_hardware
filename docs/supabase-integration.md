@@ -4,11 +4,8 @@
 
 The firmware targets project `akvfnfusmdnqgvurihza`:
 
-- Relay read: `GET /rest/v1/devices?select=relay_state,wifi_reset_requested_at&mac_address=eq.<MAC>`
+- Relay read: `GET /rest/v1/devices?select=relay_state&mac_address=eq.<MAC>`
 - Telemetry write: `POST /rest/v1/energy_logs`
-- Wi-Fi reset acknowledgement: `POST /rest/v1/rpc/ack_wifi_reset` with `{"p_mac": "<MAC>"}`
-
-When the owner presses **Reset Wi-Fi** on the dashboard, the platform sets `devices.wifi_reset_requested_at` (platform migration `046`). The relay poll sees it, calls `ack_wifi_reset`, and only when that returns `true` (a request under 10 minutes old) clears the saved Wi-Fi with `wm.resetSettings()` and restarts into the `WattWise-Setup` portal. The flag is cleared before the reset, so a reprovisioned unit doesn't reset again. The registration-check `GET` at startup still selects only `relay_state`.
 
 Both requests send the public anon key as `apikey` and as a Bearer token. The key is currently compiled into `src/main.cpp`; this is acceptable only for the controlled prototype and requires strict RLS.
 

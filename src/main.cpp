@@ -9,7 +9,6 @@
 // public anon key with a service-role key in firmware.
 const String SUPABASE_URL_LOGS = "https://akvfnfusmdnqgvurihza.supabase.co/rest/v1/energy_logs";
 const String SUPABASE_URL_DEVICES = "https://akvfnfusmdnqgvurihza.supabase.co/rest/v1/devices";
-const String SUPABASE_URL_ACK_WIFI_RESET = "https://akvfnfusmdnqgvurihza.supabase.co/rest/v1/rpc/ack_wifi_reset";
 const String SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrdmZuZnVzbWRucWd2dXJpaHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NDAwMDEsImV4cCI6MjA4OTQxNjAwMX0.xUOCxPNaYXGrb0WdDTgDT5gpIZs0cs43Cw1UqqpFAC8";
 
 #define PZEM_RX_PIN 4
@@ -326,28 +325,9 @@ void readSensor(unsigned long now) {
   }
 }
 
-// Clears the dashboard's Wi-Fi reset request; true only for a fresh request (platform migration 046).
-bool ackWifiReset() {
-  HTTPClient http;
-  if (!http.begin(SUPABASE_URL_ACK_WIFI_RESET)) {
-    return false;
-  }
-  addHeaders(http, true);
-  JsonDocument body;
-  body["p_mac"] = macID;
-  String json;
-  serializeJson(body, json);
-  const int code = http.POST(json);
-  String response = http.getString();
-  http.end();
-  response.trim();
-  Serial.println("[SETUP] Wi-Fi reset ack: HTTP " + String(code) + " " + response);
-  return code == 200 && response == "true";
-}
-
 void pollRelayState() {
   HTTPClient http;
-  String url = SUPABASE_URL_DEVICES + "?select=relay_state,wifi_reset_requested_at&mac_address=eq." + urlEncode(macID);
+  String url = SUPABASE_URL_DEVICES + "?select=relay_state&mac_address=eq." + urlEncode(macID);
   if (!http.begin(url)) {
     recordCloudFailure("relay GET", -1);
     return;
@@ -361,17 +341,6 @@ void pollRelayState() {
       isRelayOn = doc[0]["relay_state"].as<bool>();
       digitalWrite(RELAY_PIN, isRelayOn ? HIGH : LOW);
       Serial.println(String("[RELAY] Command applied: ") + (isRelayOn ? "ON" : "OFF"));
-      if (!doc[0]["wifi_reset_requested_at"].isNull()) {
-        http.end();
-        // Ack first so the flag is gone before the unit loses its network; a stale request is just cleared.
-        if (ackWifiReset()) {
-          Serial.println("[SETUP] Dashboard requested a Wi-Fi reset; clearing credentials and restarting");
-          wm.resetSettings();
-          delay(250);
-          ESP.restart();
-        }
-        return;
-      }
     } else {
       Serial.println("[RELAY] Invalid or empty relay response; keeping fail-safe state");
       recordCloudFailure("relay JSON", code);
